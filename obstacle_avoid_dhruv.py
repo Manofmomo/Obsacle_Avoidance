@@ -14,7 +14,7 @@ pub1 = rospy.Publisher('/mavros/setpoint_position/local', PoseStamped, queue_siz
 pub_vel=rospy.Publisher('/mavros/setpoint_velocity/cmd_vel',TwistStamped,queue_size=20)
 
 
-def callback_lidar(msg):
+def callback_lidar(msg): #takes lidar values and sees if an object is detected
     counter =0
     start_ind=int((-np.pi/2-msg.angle_min)/msg.angle_increment)
     stop_ind=int((msg.angle_max-np.pi/2)/msg.angle_increment)
@@ -42,11 +42,11 @@ def setpoint(args):
     rospy.loginfo('Setpoint added')
 
 
-def oa_detect():
+def oa_detect():   # connects to subscriber 
     rospy.Subscriber('/spur/laser/scan',LaserScan,callback_lidar)
     rospy.spin()
                 
-def rebound(msg):
+def rebound(msg): # finds the rebound angle by the algo
     start_ind=int((-np.pi/2-msg.angle_min)/msg.angle_increment)
     stop_ind=int((msg.angle_max-np.pi/2)/msg.angle_increment)
     alpha_o=np.pi/msg.angle_increment
@@ -63,7 +63,7 @@ def rebound(msg):
     ang=alpha_o*sum_idi/sum_di
     rebound_pub(ang)
 
-def rebound_pub(ang):
+def rebound_pub(ang): #publishes the calculated angle 
     vel=TwistStamped()
     ang=ang+np.pi/2
     vel.twist.linear.x=speed*np.cos(ang)
@@ -73,7 +73,7 @@ def rebound_pub(ang):
         pub_vel.publish(vel)
     oa_detect()
     
-def stop_now():
+def stop_now():  #stops the drone 
     vel=TwistStamped()
     vel.twist.linear.x=0
     vel.twist.linear.y=0
