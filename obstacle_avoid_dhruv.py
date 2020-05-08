@@ -19,14 +19,13 @@ def callback_lidar(msg): #takes lidar values and sees if an object is detected
     start_ind=int((-np.pi/2-msg.angle_min)/msg.angle_increment)
     stop_ind=int((msg.angle_max-np.pi/2)/msg.angle_increment)
 
-
-    for i in range(start_ind,stop_ind):
-        if msg.ranges[i]>msg.range_min and msg.ranges[i]<msg.range_max:
-            if msg.ranges[i]<oa_radius:
-                rospy.loginfo("object detected")
-                counter=1
-                stop_now() #stops drone 
-                break
+    for i in range(0,720):
+        if msg.ranges[i]<oa_radius and msg.ranges[i]>1:
+            print(msg.ranges[i])
+            rospy.loginfo("object detected")
+            counter=1
+            #stop_now() #stops drone 
+            break
     
     if counter == 1:
         rebound(msg) # rebound is called 
@@ -44,26 +43,27 @@ def setpoint(args):
 
 def oa_detect():   # connects to subscriber 
     rospy.Subscriber('/spur/laser/scan',LaserScan,callback_lidar)
-    rospy.spin()
+    print('inside OA detect')
+
                 
 def rebound(msg): # finds the rebound angle by the algo
-    start_ind=int((-np.pi/2-msg.angle_min)/msg.angle_increment)
-    stop_ind=int((msg.angle_max-np.pi/2)/msg.angle_increment)
-    alpha_o=np.pi/msg.angle_increment
+    rospy.loginfo('Rebound called')
+    alpha_o=msg.angle_increment
     
     sum_di=0
     sum_idi=0
     j = -np.pi/msg.angle_increment  #initalise index 
-    for j in range(start_ind,stop_ind):
+    for i in range(0,720):
         if msg.ranges[i]>msg.range_min and msg.ranges[i]<msg.range_max:
-               sum_di=sum_di + msg.range[i]
-               sum_idi=sum_idi + j*msg.range[i]
+               sum_di=sum_di + msg.ranges[i]
+               sum_idi=sum_idi + j*msg.ranges[i]
         j=j+1
 
     ang=alpha_o*sum_idi/sum_di
     rebound_pub(ang)
 
-def rebound_pub(ang): #publishes the calculated angle 
+def rebound_pub(ang): #publishes the calculated angle
+    rospy.loginfo('publishing rebound angle')
     vel=TwistStamped()
     ang=ang+np.pi/2
     vel.twist.linear.x=speed*np.cos(ang)
@@ -71,6 +71,7 @@ def rebound_pub(ang): #publishes the calculated angle
     vel.twist.linear.z=0
     for i in range(100):
         pub_vel.publish(vel)
+    rospy.sleep(1.)
     oa_detect()
     
 def stop_now():  #stops the drone 
@@ -78,6 +79,7 @@ def stop_now():  #stops the drone
     vel.twist.linear.x=0
     vel.twist.linear.y=0
     vel.twist.linear.z=0
+    rospy.loginfo('Stopping drone')
     for i in range(100):
         pub_vel.publish(vel)
 
@@ -96,6 +98,7 @@ if __name__=="__main__":
     r = rospy.Rate(10)
     try:
         while not rospy.is_shutdown():
+            rospy.loginfo('reran loop')
             setpoint(args)
             oa_detect()
             r.sleep()
