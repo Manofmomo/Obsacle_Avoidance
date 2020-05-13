@@ -2,7 +2,6 @@
 import numpy as np
 import rospy
 import argparse 
-import rospy
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import TwistStamped
 from geometry_msgs.msg import Twist
@@ -10,7 +9,6 @@ from sensor_msgs.msg import LaserScan
 #parameters 
 speed=10
 oa_radius=10
-pose = PoseStamped()
 
 pub1 = rospy.Publisher('/mavros/setpoint_position/local', PoseStamped, queue_size=10)
 
