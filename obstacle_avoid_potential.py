@@ -112,12 +112,12 @@ if __name__=="__main__":
             break
         rate.sleep()
 
- 
-    vel.linear.x = 0
-    vel.linear.y = 0
-    vel.linear.z = 0
-    for i in range(10):
-        pub_vel.publish(vel)         
+    pose.pose.position.x = args.x
+    pose.pose.position.y = args.y
+    pose.pose.position.z = args.z
+    for i in range(0,10):
+        pub_position.publish(pose)
+        rospy.sleep(1/5.)         
            
 
 
