@@ -2,7 +2,7 @@
 import numpy as np
 import rospy
 import time
-import argparse 
+import argparse
 from geometry_msgs.msg import PoseStamped
 from geometry_msgs.msg import TwistStamped
 from geometry_msgs.msg import Twist
@@ -20,40 +20,50 @@ def callback_pose(msg):
     global pose
     pose = msg
 
-def oa_field(args):
+def grid_maker(args):
     global pose
     global lidar
-    global vel
-    global pub_vel
     global size_grid
     start = time.time()
-    for d in range(0,d_max):
-        for theta in range
+    d_max= 30 #max range of lidar
+    grid=[[-1 for _ in range(round(-1.5*d_max*size_grid/2),round(1.5*d_max*size_grid/2))] for temp in range((round(-1.5*d_max*size_grid/2),round(1.5*d_max*size_grid/2)))]
+    # 1.5 is just a factor to make the map bigger than the max range
+    # this is the location of the mid point where our drone is
+    off_x= round(1.5*d_max*size_grid/2)
+    off_y= round(1.5*d_max*size_grid/2)
     for i in range(0,1024):
         if lidar.ranges[i]<d_max and lidar.ranges[i]>3:
 
             theta = ((180*i)/512)*np.pi/180
             si_x  = np.cos(theta)
             si_y = np.sin(theta)
-            x_index= round(si_x*lidar.ranges[i]*size_grid) + round((pose.pose.position.x)*size_grid)
-            y_index= round(si_y*lidar.ranges[i]*size_grid) + round((pose.pose.position.y)*size_grid)
-            
-            
-            grid[x_index][y_index]=100
+            # function to put 100 all along the way
+            for d in range(lidar.ranges[i],d_max):
 
-    pub_vel.publish(vel)
+                x_index= round(si_x*d*size_grid) + off_x
+                y_index= round(si_y*d*size_grid) + off_y
+                #making a cube around that 100
+                grid[x_index][y_index]=100
+                grid[x_index+1][y_index]=100
+                grid[x_index][y_index+1]=100
+                grid[x_index+1][y_index+1]=100
+                grid[x_index-1][y_index]=100
+                grid[x_index][y_index-1]=100
+                grid[x_index-1][y_index-1]=100
+                grid[x_index+1][y_index-1]=100
+                grid[x_index-1][y_index+1]=100
 
     end = time.time()
-    print("time taken to complete the loop =",end - start)
+    print("time taken to update the grid =",end - start)
 
-    
-    
-   
+
+
+
 
 def callback_lidar(msg):
     global lidar
     lidar = msg
- 
+
 
 
 if __name__=="__main__":
@@ -65,22 +75,22 @@ if __name__=="__main__":
     print(args.x)
     print(args.y)
     print(args.z)
-    
+
 
     rospy.Subscriber('/mavros/local_position/pose', PoseStamped, callback_pose)
     rospy.Subscriber('/spur/laser/scan',LaserScan,callback_lidar)
     pub_vel=rospy.Publisher('/mavros/setpoint_velocity/cmd_vel_unstamped',Twist,queue_size=20)
     pub_position=rospy.Publisher('/mavros/setpoint_position/local', PoseStamped, queue_size=10)
     rospy.init_node("OA",anonymous=True)
- 
-    
+
+
     pose.pose.position.z = args.z
     for i in range(0,10):
         pub_position.publish(pose)
         rospy.sleep(1/5.)
     while not pose.pose.position.z - args.z < 0.5 or pose.pose.position.z < -0.5:
         rospy.sleep(1/5.)
-        
+
     print("-------------Height Reached------------")
 
     rate = rospy.Rate(2)
@@ -99,8 +109,4 @@ if __name__=="__main__":
     pose.pose.position.z = args.z
     for i in range(0,10):
         pub_position.publish(pose)
-        rospy.sleep(1/5.)         
-           
-
-
-    
+        rospy.sleep(1/5.)
