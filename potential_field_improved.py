@@ -169,12 +169,12 @@ def oa_field(args):
 
     if stuck and np.sqrt(f_rep_x**2+f_rep_y**2)>np.sqrt(f_att_x**2+f_att_y**2):
         print("Continuing to use alternative algorithm")
-        delta = #Trigger algo
+        delta = gap_method()
 
     elif mag<threshold_force:
         stuck=True
         print("Minima detected, switching algorithm")
-        delta = # Trigger algo
+        delta = gap_method()
 
     else:
         stuck=False
