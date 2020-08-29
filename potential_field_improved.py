@@ -21,14 +21,14 @@ threshold_vel=0.5  #minimum speed at which to declare minima , ranges from 0 to 
 n=4 #paramater decreasing repulsive
 step_size = 0.5 #distance traveled by drone in each step
 threshold_force = 5
-alpha= #weightage of theta_center vs theta_goal
-
+alpha= 1#weightage of theta_center vs theta_goal
+temp=True
 pose = PoseStamped()
 lidar = LaserScan()
 vel = Twist()
 setpoint = PoseStamped()
 
-initial_orientation = None
+initial_orientation = 0
 stuck = False
 
 def callback_lidar(msg):
@@ -40,7 +40,13 @@ def distance(point_1,point_2):
 
 def callback_pose(msg):
     global pose
+    global temp
     pose = msg
+    if temp:
+        temp=False
+        initial_orientation = quaternion_to_euler(pose.pose.orientation.x, pose.pose.orientation.y, pose.pose.orientation.z, pose.pose.orientation.w,"radians")
+        initial_orientation = initial_orientation[0]
+
 
 def quaternion_to_euler(x, y, z, w,type="degree"):
 
@@ -115,7 +121,14 @@ def gap_method():
     max_end_index = int(interval.split("-")[1])
 
     d1=gap_array[max_start_index-1]
-    d2=gap_array[max_end_index+1]
+    if max_end_index < (len(gap_array)-1):
+        d2=gap_array[max_end_index+1]
+    else:
+        i=0
+        while gap_array[i]==float('inf'):
+            i+=1
+
+        d2=gap_array[i]
     dmin=min(gap_array)
     euler = quaternion_to_euler(pose.pose.orientation.x, pose.pose.orientation.y, pose.pose.orientation.z, pose.pose.orientation.w,"radians")
 
@@ -141,14 +154,15 @@ def oa_field(args):
     global stuck
     f_rep_x = 0
     f_rep_y = 0
-
+    f_rep = 0
 
     start = time.time()
     euler = quaternion_to_euler(pose.pose.orientation.x, pose.pose.orientation.y, pose.pose.orientation.z, pose.pose.orientation.w,"radians")
     euler = euler[0]
-
+    theta = 0
+    print(len(lidar.ranges))
     for i in range(0,1024):
-        if lidar.ranges[i]<d_max and lidar.ranges[i]>3:
+        if lidar.ranges[i]<d_max and lidar.ranges[i]>1:
 
             theta = ((180*i)/512)*np.pi/180 + round(euler-initial_orientation , 3)
             #component 1
@@ -160,8 +174,8 @@ def oa_field(args):
     f_rep_y = -1*f_rep*np.sin(theta)
 
 
-    f_att_x = k_att * (args.x-pose.pose.position.x)/distance([args.x,args.y],[pose.pose.position.x,pose.pose.position.y])
-    f_att_y = k_att * (args.y-pose.pose.position.y)/distance([args.x,args.y],[pose.pose.position.x,pose.pose.position.y])
+    f_att_x = k_att_rep * (args.x-pose.pose.position.x)/distance([args.x,args.y],[pose.pose.position.x,pose.pose.position.y])
+    f_att_y = k_att_rep * (args.y-pose.pose.position.y)/distance([args.x,args.y],[pose.pose.position.x,pose.pose.position.y])
     f_tot_x= f_rep_x + f_att_x #final resultant force
     f_tot_y= f_rep_y + f_att_y
 
@@ -191,7 +205,7 @@ def oa_field(args):
     setpoint.pose.position.z = args.z
 
     pub_position.publish(setpoint)
-    rospy.loginfo("f_total_x,f_total_y = ", f_tot_x,f_tot_y," and x_final,y_final = ", x_final,y_final," stuck= ",stuck)
+    print("f_total_x,f_total_y = ", f_tot_x,f_tot_y," and x_final,y_final = ", x_final,y_final," stuck= ",stuck)
     # vel.linear.x = speed*f_tot_x/mag
     # vel.linear.y = speed*f_tot_y/mag
     # vel.linear.z = 0
@@ -209,7 +223,6 @@ def oa_field(args):
 
 
 if __name__=="__main__":
-    global initial_orientation
     parser = argparse.ArgumentParser(description="setpoint/postition")
     parser.add_argument('-x', '--x', type=int, help="x component of point")
     parser.add_argument('-y', '--y', type=int, help="y component of point")
@@ -230,22 +243,21 @@ if __name__=="__main__":
     rospy.init_node("OA",anonymous=True)
 
     if args.takeoff:
-        takeoff(args.height)
+        takeoff(args.z)
     else:
         pose.pose.position.z = args.z
         for i in range(0,10):
             pub_position.publish(pose)
             rospy.sleep(1/5.)
-        while not  pose.pose.position.z - args.z < 0.5 or pose.pose.position.z - args.z < -0.5:
-            rospy.sleep(1/5.)
+    while not  pose.pose.position.z - args.z < 0.5 or pose.pose.position.z - args.z < -0.5:
+        rospy.sleep(1/5.)
 
-        print("-------------Height Reached------------")
+    print("-------------Height Reached------------")
 
     rate = rospy.Rate(2)
     d=0
     # initial initialization
-    initial_orientation = quaternion_to_euler(pose.pose.orientation.x, pose.pose.orientation.y, pose.pose.orientation.z, pose.pose.orientation.w,"radians")
-    initial_orientation = initial_orientation[0]
+
 
     while not rospy.is_shutdown():
 
